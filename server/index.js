@@ -85,6 +85,38 @@ app.delete('/api/productos/:id', (req, res) => {
   });
 });
 
+// ==========================================
+// 2. M+ôDULO DE ALERTAS (BAJO STOCK)
+// ==========================================
+app.get('/api/alertas/bajo-stock', (req, res) => {
+  const query = `
+    SELECT p.*, c.nombre AS categoria_nombre 
+    FROM productos p
+    LEFT JOIN categorias c ON p.categoria_id = c.id
+    WHERE p.stock_actual <= p.stock_minimo 
+    ORDER BY p.stock_actual ASC
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Estad+¡sticas para el resumen
+app.get('/api/dashboard', (req, res) => {
+  const query = `
+    SELECT 
+      (SELECT COUNT(*) FROM productos) AS total_productos,
+      (SELECT COUNT(*) FROM productos WHERE stock_actual <= stock_minimo) AS total_alertas,
+      (SELECT COUNT(*) FROM ventas WHERE DATE(fecha) = CURDATE()) AS ventas_hoy,
+      (SELECT IFNULL(SUM(total), 0) FROM ventas WHERE DATE(fecha) = CURDATE()) AS ingresos_hoy
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results[0]);
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Servidor backend de Nova Salud corriendo en el puerto ${PORT}`);
