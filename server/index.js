@@ -102,6 +102,106 @@ app.get('/api/alertas/bajo-stock', (req, res) => {
   });
 });
 
+// ==========================================
+// 3. M+ôDULO DE VENTAS (PUNTO DE VENTA)
+// ==========================================
+
+// Registrar una venta con transacci+¦n y descuento autom+ítico de stock
+app.post('/api/ventas', (req, res) => {
+  const { cliente_nombre, cliente_dni, total, metodo_pago, items } = req.body;
+
+  if (!items || items.length === 0) {
+    return res.status(400).json({ error: 'El carrito no contiene productos' });
+  }
+
+  db.getConnection((err, connection) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    connection.beginTransaction((err) => {
+      if (err) {
+        connection.release();
+        return res.status(500).json({ error: err.message });
+      }
+
+      // 1. Insertar Cabecera de Venta
+      const queryVenta = `
+        INSERT INTO ventas (cliente_nombre, cliente_dni, total, metodo_pago) 
+        VALUES (?, ?, ?, ?)
+      `;
+      connection.query(queryVenta, [cliente_nombre || 'Cliente General', cliente_dni || '', total, metodo_pago || 'Efectivo'], (err, resultVenta) => {
+        if (err) {
+          return connection.rollback(() => {
+            connection.release();
+            res.status(500).json({ error: err.message });
+          });
+        }
+
+        const ventaId = resultVenta.insertId;
+
+        // 2. Insertar Detalle y Descontar Stock para cada producto
+        let itemsProcesados = 0;
+        for (let item of items) {
+          const queryDetalle = `
+            INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, subtotal)
+            VALUES (?, ?, ?, ?, ?)
+          `;
+          const subtotal = item.precio * item.cantidad;
+
+          connection.query(queryDetalle, [ventaId, item.id, item.cantidad, item.precio, subtotal], (err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: err.message });
+              });
+            }
+
+            // Descontar inventario
+            const queryStock = 'UPDATE productos SET stock_actual = stock_actual - ? WHERE id = ?';
+            connection.query(queryStock, [item.cantidad, item.id], (err) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  res.status(500).json({ error: err.message });
+                });
+              }
+
+              itemsProcesados++;
+              if (itemsProcesados === items.length) {
+                connection.commit((err) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      res.status(500).json({ error: err.message });
+                    });
+                  }
+                  connection.release();
+                  res.status(201).json({ message: 'Venta registrada con +®xito', ventaId });
+                });
+              }
+            });
+          });
+        }
+      });
+    });
+  });
+});
+
+// Listar historial de ventas
+app.get('/api/ventas', (req, res) => {
+  const query = `
+    SELECT v.*, COUNT(d.id) AS total_articulos
+    FROM ventas v
+    LEFT JOIN detalle_ventas d ON v.id = d.venta_id
+    GROUP BY v.id
+    ORDER BY v.fecha DESC
+    LIMIT 50
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
 // Estad+¡sticas para el resumen
 app.get('/api/dashboard', (req, res) => {
   const query = `
