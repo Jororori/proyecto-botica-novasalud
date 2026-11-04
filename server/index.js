@@ -6,27 +6,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuraci+¦n del pool de conexi+¦n a MySQL
+
+const dbHost = process.env.DB_HOST || 'localhost';
+const dbUser = process.env.DB_USER || 'root';
+const dbPassword = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '';
+const dbName = process.env.DB_NAME || 'botica_novasalud';
+const dbPort = Number(process.env.DB_PORT) || 3307;
+
 const db = mysql.createPool({
-  host: process.env.DB_HOST || 'db',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'rootpassword',
-  database: process.env.DB_NAME || 'botica_novasalud',
+  host: dbHost,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
+  port: dbPort,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
-// Prueba de salud
+
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error(`[MySQL Error] No se pudo conectar a la base de datos en ${dbHost}:${dbPort} (${err.code}):`, err.message);
+  } else {
+    console.log(`[MySQL] ConexiÃ³n establecida exitosamente con la base de datos "${dbName}" en ${dbHost}:${dbPort}`);
+    connection.release();
+  }
+});
+
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Servidor Nova Salud activo' });
 });
 
-// ==========================================
-// 1. M+ôDULO DE INVENTARIO / PRODUCTOS
-// ==========================================
 
-// Listar todos los medicamentos
 app.get('/api/productos', (req, res) => {
   const query = `
     SELECT p.*, c.nombre AS categoria_nombre 
@@ -40,7 +53,7 @@ app.get('/api/productos', (req, res) => {
   });
 });
 
-// Listar categor+¡as disponibles
+
 app.get('/api/categorias', (req, res) => {
   db.query('SELECT * FROM categorias ORDER BY nombre ASC', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -48,7 +61,7 @@ app.get('/api/categorias', (req, res) => {
   });
 });
 
-// Registrar nuevo producto
+
 app.post('/api/productos', (req, res) => {
   const { codigo_barras, nombre, descripcion, categoria_id, precio, stock_actual, stock_minimo, fecha_vencimiento } = req.body;
   const query = `
@@ -57,11 +70,11 @@ app.post('/api/productos', (req, res) => {
   `;
   db.query(query, [codigo_barras, nombre, descripcion, categoria_id || 1, precio, stock_actual, stock_minimo, fecha_vencimiento], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ message: 'Producto registrado con +®xito', id: result.insertId });
+    res.status(201).json({ message: 'Producto registrado con Ã©xito', id: result.insertId });
   });
 });
 
-// Actualizar producto
+
 app.put('/api/productos/:id', (req, res) => {
   const { id } = req.params;
   const { codigo_barras, nombre, descripcion, categoria_id, precio, stock_actual, stock_minimo, fecha_vencimiento } = req.body;
@@ -72,22 +85,20 @@ app.put('/api/productos/:id', (req, res) => {
   `;
   db.query(query, [codigo_barras, nombre, descripcion, categoria_id || 1, precio, stock_actual, stock_minimo, fecha_vencimiento, id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Producto actualizado con +®xito' });
+    res.json({ message: 'Producto actualizado con Ã©xito' });
   });
 });
 
-// Eliminar producto
+
 app.delete('/api/productos/:id', (req, res) => {
   const { id } = req.params;
   db.query('DELETE FROM productos WHERE id = ?', [id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Producto eliminado con +®xito' });
+    res.json({ message: 'Producto eliminado con Ã©xito' });
   });
 });
 
-// ==========================================
-// 2. M+ôDULO DE ALERTAS (BAJO STOCK)
-// ==========================================
+
 app.get('/api/alertas/bajo-stock', (req, res) => {
   const query = `
     SELECT p.*, c.nombre AS categoria_nombre 
@@ -102,11 +113,8 @@ app.get('/api/alertas/bajo-stock', (req, res) => {
   });
 });
 
-// ==========================================
-// 3. M+ôDULO DE VENTAS (PUNTO DE VENTA)
-// ==========================================
 
-// Registrar una venta con transacci+¦n y descuento autom+ítico de stock
+
 app.post('/api/ventas', (req, res) => {
   const { cliente_nombre, cliente_dni, total, metodo_pago, items } = req.body;
 
@@ -123,7 +131,7 @@ app.post('/api/ventas', (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      // 1. Insertar Cabecera de Venta
+
       const queryVenta = `
         INSERT INTO ventas (cliente_nombre, cliente_dni, total, metodo_pago) 
         VALUES (?, ?, ?, ?)
@@ -138,7 +146,7 @@ app.post('/api/ventas', (req, res) => {
 
         const ventaId = resultVenta.insertId;
 
-        // 2. Insertar Detalle y Descontar Stock para cada producto
+
         let itemsProcesados = 0;
         for (let item of items) {
           const queryDetalle = `
@@ -155,7 +163,7 @@ app.post('/api/ventas', (req, res) => {
               });
             }
 
-            // Descontar inventario
+
             const queryStock = 'UPDATE productos SET stock_actual = stock_actual - ? WHERE id = ?';
             connection.query(queryStock, [item.cantidad, item.id], (err) => {
               if (err) {
@@ -175,7 +183,7 @@ app.post('/api/ventas', (req, res) => {
                     });
                   }
                   connection.release();
-                  res.status(201).json({ message: 'Venta registrada con +®xito', ventaId });
+                  res.status(201).json({ message: 'Venta registrada con Ã©xito', ventaId });
                 });
               }
             });
@@ -186,15 +194,20 @@ app.post('/api/ventas', (req, res) => {
   });
 });
 
-// Listar historial de ventas
+
+// Listar historial de ventas con resumen de medicamentos vendidos
 app.get('/api/ventas', (req, res) => {
   const query = `
-    SELECT v.*, COUNT(d.id) AS total_articulos
+    SELECT 
+      v.*, 
+      COUNT(d.id) AS total_articulos,
+      IFNULL(GROUP_CONCAT(CONCAT(d.cantidad, 'x ', IFNULL(p.nombre, 'Medicamento')) SEPARATOR ', '), 'Sin artÃ­culos') AS productos_resumen
     FROM ventas v
     LEFT JOIN detalle_ventas d ON v.id = d.venta_id
+    LEFT JOIN productos p ON d.producto_id = p.id
     GROUP BY v.id
     ORDER BY v.fecha DESC
-    LIMIT 50
+    LIMIT 100
   `;
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -202,7 +215,33 @@ app.get('/api/ventas', (req, res) => {
   });
 });
 
-// Estad+¡sticas para el resumen
+// Obtener el detalle especÃ­fico de productos de una venta
+app.get('/api/ventas/:id/detalle', (req, res) => {
+  const { id } = req.params;
+  const query = `
+    SELECT 
+      d.id,
+      d.venta_id,
+      d.producto_id,
+      d.cantidad,
+      d.precio_unitario,
+      d.subtotal,
+      IFNULL(p.nombre, 'Medicamento') AS producto_nombre,
+      p.codigo_barras,
+      c.nombre AS categoria_nombre
+    FROM detalle_ventas d
+    LEFT JOIN productos p ON d.producto_id = p.id
+    LEFT JOIN categorias c ON p.categoria_id = c.id
+    WHERE d.venta_id = ?
+    ORDER BY d.id ASC
+  `;
+  db.query(query, [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+
 app.get('/api/dashboard', (req, res) => {
   const query = `
     SELECT 
