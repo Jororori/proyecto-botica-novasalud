@@ -540,6 +540,180 @@ function App() {
         )}
 
         {/* ==================================================== */}
+        {/* PESTA+澉 2: PUNTO DE VENTA (POS)                      */}
+        {/* ==================================================== */}
+        {tab === 'ventas' && (
+          <div className="row g-4">
+            {/* Columna Izquierda: Selecci+好 de Medicamentos */}
+            <div className="col-lg-7">
+              <div className="card card-custom h-100">
+                <div className="card-header-custom">
+                  <span><i className="bi bi-search text-primary me-2"></i> Seleccionar Medicamentos</span>
+                  <div className="w-50">
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Filtrar producto..."
+                      value={filtroPOS}
+                      onChange={(e) => setFiltroPOS(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="card-body p-3" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                  <div className="row g-2">
+                    {productosPOS.map((prod) => (
+                      <div className="col-md-6" key={prod.id}>
+                        <div
+                          className={`pos-product-item ${prod.stock_actual === 0 ? 'opacity-50' : ''}`}
+                          onClick={() => agregarAlCarrito(prod)}
+                        >
+                          <div className="d-flex justify-content-between align-items-start">
+                            <span className="fw-bold text-dark">{prod.nombre}</span>
+                            <span className="badge bg-primary">S/. {Number(prod.precio).toFixed(2)}</span>
+                          </div>
+                          <small className="text-muted d-block">{prod.descripcion || 'Sin presentaci+好'}</small>
+                          <div className="mt-2 d-flex justify-content-between align-items-center">
+                            <small className={`fw-semibold ${prod.stock_actual <= prod.stock_minimo ? 'text-danger' : 'text-success'}`}>
+                              Stock: {prod.stock_actual} unid.
+                            </small>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary py-0 px-2"
+                              disabled={prod.stock_actual <= 0}
+                            >
+                              + A+地dir
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Columna Derecha: Boleta / Carrito de Venta */}
+            <div className="col-lg-5">
+              <div className="card card-custom">
+                <div className="card-header-custom bg-light">
+                  <span className="fw-bold"><i className="bi bi-cart3 text-success me-2"></i> Carrito de Atenci+好</span>
+                  <span className="badge bg-success rounded-pill">{carrito.length} art+︷ulos</span>
+                </div>
+                <div className="card-body p-3">
+                  {/* Datos del Cliente */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-7">
+                      <label className="form-label small fw-bold">Cliente</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Nombre o Raz+好 Social"
+                        value={clienteNombre}
+                        onChange={(e) => setClienteNombre(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-5">
+                      <label className="form-label small fw-bold">DNI / RUC</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Opcional"
+                        value={clienteDni}
+                        onChange={(e) => setClienteDni(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tabla del Carrito */}
+                  <div className="table-responsive border rounded-3 mb-3" style={{ maxHeight: '250px' }}>
+                    <table className="table table-sm table-borderless mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Item</th>
+                          <th className="text-center">Cant.</th>
+                          <th className="text-end">Subtotal</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {carrito.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="text-center py-4 text-muted small">
+                              Haz clic en un medicamento para a+地dirlo.
+                            </td>
+                          </tr>
+                        ) : (
+                          carrito.map((item) => (
+                            <tr key={item.id} className="border-bottom">
+                              <td>
+                                <div className="fw-semibold small">{item.nombre}</div>
+                                <span className="text-muted small">S/. {Number(item.precio).toFixed(2)} c/u</span>
+                              </td>
+                              <td className="text-center align-middle">
+                                <div className="d-flex align-items-center justify-content-center gap-1">
+                                  <button
+                                    className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                    onClick={() => cambiarCantidad(item.id, -1)}
+                                  >-</button>
+                                  <span className="fw-bold px-1">{item.cantidad}</span>
+                                  <button
+                                    className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                    onClick={() => cambiarCantidad(item.id, 1)}
+                                  >+</button>
+                                </div>
+                              </td>
+                              <td className="text-end align-middle fw-bold text-dark">
+                                S/. {(item.precio * item.cantidad).toFixed(2)}
+                              </td>
+                              <td className="text-center align-middle">
+                                <button
+                                  className="btn btn-link text-danger p-0"
+                                  onClick={() => quitarDelCarrito(item.id)}
+                                >
+                                  <i className="bi bi-x-circle"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* M+差odo de pago */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">M+差odo de Pago</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={metodoPago}
+                      onChange={(e) => setMetodoPago(e.target.value)}
+                    >
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Yape / Plin">Yape / Plin</option>
+                      <option value="Tarjeta D+宴ito/Cr+宵ito">Tarjeta D+宴ito/Cr+宵ito</option>
+                    </select>
+                  </div>
+
+                  {/* Resumen Total y Bot+好 */}
+                  <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 mb-3">
+                    <span className="h5 mb-0 fw-bold">Total a Pagar:</span>
+                    <span className="h4 mb-0 fw-bold text-success">S/. {totalVenta.toFixed(2)}</span>
+                  </div>
+
+                  <button
+                    className="btn btn-success w-100 py-2 fw-bold shadow-sm"
+                    disabled={carrito.length === 0}
+                    onClick={procesarVenta}
+                  >
+                    <i className="bi bi-check-lg me-1"></i> Cobrar y Actualizar Stock
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
     </div>
   );
 }
