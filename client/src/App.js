@@ -714,6 +714,119 @@ function App() {
         )}
 
         {/* ==================================================== */}
+        {/* PESTA+ÊA 3: ALERTAS DE REPOSICI+ÙN                    */}
+        {/* ==================================================== */}
+        {tab === 'alertas' && (
+          <div className="card card-custom">
+            <div className="card-header-custom bg-danger bg-opacity-10 text-danger">
+              <span className="fw-bold">
+                <i className="bi bi-exclamation-octagon-fill me-2"></i>
+                Alertas Autom+Ìticas de Desabastecimiento ({alertasList.length} medicamentos cr+°ticos)
+              </span>
+            </div>
+            <div className="card-body p-0 table-responsive">
+              <table className="table table-custom table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>C+¶digo</th>
+                    <th>Medicamento</th>
+                    <th>Stock Actual</th>
+                    <th>Stock M+°nimo</th>
+                    <th>Estado de Riesgo</th>
+                    <th>Acci+¶n Inmediata</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alertasList.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="text-center py-4 text-success fw-bold">
+                        ≠ÉƒÎ -ÌExcelente! No hay productos con riesgo de desabastecimiento.
+                      </td>
+                    </tr>
+                  ) : (
+                    alertasList.map((item) => (
+                      <tr key={item.id}>
+                        <td className="font-monospace">{item.codigo_barras || 'S/C'}</td>
+                        <td>
+                          <span className="fw-bold text-dark">{item.nombre}</span>
+                          <small className="text-muted d-block">{item.descripcion}</small>
+                        </td>
+                        <td>
+                          <span className="badge bg-danger fs-6 px-3">{item.stock_actual} unid.</span>
+                        </td>
+                        <td>{item.stock_minimo} unid.</td>
+                        <td>
+                          {item.stock_actual === 0 ? (
+                            <span className="badge bg-dark">Agotado Total</span>
+                          ) : (
+                            <span className="badge bg-warning text-dark">Reposici+¶n Urgente</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              setTab('inventario');
+                              prepararEdicion(item);
+                            }}
+                          >
+                            <i className="bi bi-box-arrow-in-up me-1"></i> Reabastecer Stock
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* PESTA+ÊA 4: HISTORIAL DE VENTAS                       */}
+        {/* ==================================================== */}
+        {tab === 'historial' && (
+          <div className="card card-custom">
+            <div className="card-header-custom">
+              <span className="fw-bold"><i className="bi bi-clock-history text-primary me-2"></i> Comprobantes de Venta</span>
+            </div>
+            <div className="card-body p-0 table-responsive">
+              <table className="table table-custom table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>N-¶ Venta</th>
+                    <th>Fecha y Hora</th>
+                    <th>Cliente</th>
+                    <th>DNI / Doc</th>
+                    <th>M+Ætodo</th>
+                    <th>Total Cobrado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ventasList.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="text-center py-4 text-muted">
+                        A+¶n no se han registrado transacciones de venta.
+                      </td>
+                    </tr>
+                  ) : (
+                    ventasList.map((v) => (
+                      <tr key={v.id}>
+                        <td><span className="badge bg-light text-dark font-monospace">#{v.id}</span></td>
+                        <td>{new Date(v.fecha).toLocaleString()}</td>
+                        <td className="fw-semibold text-dark">{v.cliente_nombre}</td>
+                        <td className="text-muted">{v.cliente_dni || '-'}</td>
+                        <td><span className="badge bg-secondary">{v.metodo_pago}</span></td>
+                        <td className="fw-bold text-success">S/. {Number(v.total).toFixed(2)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
